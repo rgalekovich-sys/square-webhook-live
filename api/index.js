@@ -22,6 +22,9 @@ app.use(express.json());
 // --- VAPI WEBHOOK ENDPOINT HANDLER ---
 // The URL should be: https://[your-vercel-domain]/api/index.js
 app.post('/api/index.js', async (req, res) => {
+    // ADDED: Immediate log to confirm Vercel receives the request
+    console.log("Webhook received payload:", req.body ? 'Yes' : 'No'); 
+
     // Safely retrieve payload and arguments to prevent crashes
     const vapiPayload = req.body || {}; 
     const { functionName, args, toolCallId } = vapiPayload;
