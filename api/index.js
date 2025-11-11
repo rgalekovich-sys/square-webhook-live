@@ -20,9 +20,10 @@ app.use(cors());
 app.use(express.json()); 
 
 // --- VAPI WEBHOOK ENDPOINT HANDLER ---
-// The URL should be: https://[your-vercel-domain]/api/index.js
-app.post('/api', async (req, res) => {
-    // ADDED: Immediate log to confirm Vercel receives the request
+// Vercel routes requests targeting /api/index.js to this file.
+// We use app.post('/', ...) to catch the POST request *inside this file's context*.
+app.post('/', async (req, res) => {
+    // Immediate log to confirm Vercel receives the request
     console.log("Webhook received payload:", req.body ? 'Yes' : 'No'); 
 
     const vapiPayload = req.body || {}; 
@@ -40,6 +41,40 @@ app.post('/api', async (req, res) => {
         });
     }
 
+    try {
+        // 1. STEP 2: CUSTOMER ID LOGIC (Search/Create)
+        let customer_id = await searchCustomer(customer_phone, TOKEN);
+        if (!customer_id) {
+            customer_id = await createCustomer(customer_name, customer_phone, TOKEN);
+        }
+        if (!customer_id) {
+            throw new Error("Failed to secure customer ID for booking.");
+        }
+
+        // 2. STEP 3: CREATE THE BOOKING
+        const bookingId = await createSquareBooking(customer_id, start_time, TOKEN);
+
+        // 3. VAPI SUCCESS RESPONSE
+        res.status(200).json({
+            results: [{
+                toolCallId: toolCallId,
+                // Simplified result message
+                result: `Booking success. ID: ${bookingId}.` 
+            }]
+        });
+
+    } catch (error) {
+        console.error("Booking Error:", error.message);
+        // VAPI FAILURE RESPONSE (Ensures VAPI always gets a result)
+        res.status(200).json({
+            results: [{
+                toolCallId: toolCallId,
+                // Failure message remains detailed for debugging
+                result: `I encountered a system error and could not finalize the booking. Failure Detail: ${error.message}`
+            }]
+        });
+    }
+});
     try {
         // 1. STEP 2: CUSTOMER ID LOGIC (Search/Create)
         let customer_id = await searchCustomer(customer_phone, TOKEN);
