@@ -25,16 +25,13 @@ app.post('/api/index.js', async (req, res) => {
     // ADDED: Immediate log to confirm Vercel receives the request
     console.log("Webhook received payload:", req.body ? 'Yes' : 'No'); 
 
-    // Safely retrieve payload and arguments to prevent crashes
     const vapiPayload = req.body || {}; 
     const { functionName, args, toolCallId } = vapiPayload;
     
-    // Safely destructure all required arguments (defaults to empty object if args is missing)
     const { customer_name, customer_phone, start_time, service_name } = args || {}; 
 
-    // --- INPUT VALIDATION ---
+    // --- INPUT VALIDATION (unchanged) ---
     if (functionName !== 'schedule_square_appointment' || !customer_name || !service_name || !TOKEN) {
-        // Return a Status 200 with an error message so VAPI handles it gracefully
         return res.status(200).json({
             results: [{ 
                 toolCallId: toolCallId || 'test-error', 
@@ -60,8 +57,8 @@ app.post('/api/index.js', async (req, res) => {
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                // Provide the success message to the VAPI assistant
-                result: `Great! I've confirmed your appointment. Your booking ID is ${bookingId}. The service is ${service_name} at ${start_time}.`
+                // SIMPLIFIED RESULT MESSAGE TO PREVENT JSON PARSING ERRORS
+                result: `Booking success. ID: ${bookingId}.` 
             }]
         });
 
@@ -71,7 +68,7 @@ app.post('/api/index.js', async (req, res) => {
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                // Use a clearer message to aid debugging if failure persists
+                // Failure message remains detailed for debugging
                 result: `I encountered a system error and could not finalize the booking. Failure Detail: ${error.message}`
             }]
         });
