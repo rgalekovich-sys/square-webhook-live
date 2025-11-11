@@ -57,17 +57,19 @@ app.post('/api/index.js', async (req, res) => {
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                result: `Great! I've confirmed your appointment. Your booking ID is ${bookingId}. Please remember this is a test, so cancel the booking on your live calendar immediately.`
+                // Provide the success message to the VAPI assistant
+                result: `Great! I've confirmed your appointment. Your booking ID is ${bookingId}. The service is ${service_name} at ${start_time}.`
             }]
         });
 
     } catch (error) {
         console.error("Booking Error:", error.message);
-        // VAPI FAILURE RESPONSE 
+        // VAPI FAILURE RESPONSE (Ensures VAPI always gets a result)
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                result: `I encountered a system error and could not finalize the booking. Error: ${error.message}`
+                // Use a clearer message to aid debugging if failure persists
+                result: `I encountered a system error and could not finalize the booking. Failure Detail: ${error.message}`
             }]
         });
     }
@@ -105,7 +107,7 @@ async function createCustomer(fullName, phone, token) {
     return data.customer ? data.customer.id : null;
 }
 
-// --- HELPER FUNCTION: CREATE BOOKING ---
+// --- HELPER FUNCTION: CREATE BOOKING (FIXED) ---
 async function createSquareBooking(customerId, startTime, token) {
     const bookingUrl = 'https://connect.squareup.com/v2/bookings';
     const response = await fetch(bookingUrl, {
@@ -126,13 +128,22 @@ async function createSquareBooking(customerId, startTime, token) {
     });
 
     const data = await response.json();
-    if (response.ok && data.booking) {
-        return data.booking.id;
+    
+    // CRITICAL FIX: Check for HTTP error first
+    if (!response.ok) {
+        throw new Error(data.errors ? data.errors[0].detail : `HTTP Error ${response.status} from Square.`);
     }
-    // Square API error handling
-    throw new Error(data.errors ? data.errors[0].detail : 'Unknown Square API error');
+
+    // CRITICAL FIX: If response is OK but no booking object is returned (e.g., availability fail)
+    if (!data.booking) {
+        // This handles cases where Square rejects the booking due to conflict or availability.
+        throw new Error(data.errors ? data.errors[0].detail : 'Square accepted request but returned no booking object (e.g., time slot unavailable).');
+    }
+
+    // Success path
+    return data.booking.id;
 }
 
-// --- EXPORT THE EXPRESS APP (The Fix for Vercel) ---
+// --- EXPORT THE EXPRESS APP ---
 // Vercel/Passenger requires exporting the app object instead of calling app.listen()
 module.exports = app;
