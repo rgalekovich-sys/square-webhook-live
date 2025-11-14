@@ -1,6 +1,5 @@
 // index.js - VAPI to Square Appointments Connector
-// This file uses standard Node.js/Vercel serverless function structure.
-
+// This file uses standard Node.js/Vercel serverless function structure relying on GLOBAL fetch.
 
 // --- SECRETS LOADED FROM Vercel Environment Variables ---
 const TOKEN = process.env.SQUARE_TOKEN;
@@ -72,7 +71,7 @@ module.exports = async (req, res) => {
     }
 };
 
-// --- HELPER FUNCTIONS (UNCHANGED) ---
+// --- HELPER FUNCTIONS ---
 
 async function searchCustomer(phone, token) {
     const searchUrl = 'https://connect.squareup.com/v2/customers/search';
