@@ -136,3 +136,29 @@ async function createSquareBooking(customerId, startTime, token) {
                 appointment_segments: [{
                     service_variation_id: SERVICE_ID,
                     team_member_id: TEAM_ID
+                }]
+            },
+            idempotency_key: `vapi-booking-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+        })
+    });
+
+    const data = await response.json();
+    
+    // CRITICAL FIX: Check for HTTP error first
+    if (!response.ok) {
+        throw new Error(data.errors ? data.errors[0].detail : `Booking HTTP Error ${response.status} from Square.`);
+    }
+
+    // CRITICAL FIX: If response is OK but no booking object is returned (e.g., availability fail)
+    if (!data.booking) {
+        // This handles cases where Square rejects the booking due to conflict or availability.
+        throw new Error(data.errors ? data.errors[0].detail : 'Square accepted request but returned no booking object (e.g., time slot unavailable).');
+    }
+
+    // Success path
+    return data.booking.id;
+}
+
+// --- EXPORT THE EXPRESS APP ---
+// Vercel/Passenger requires exporting the app object instead of calling app.listen()
+module.exports = app;
