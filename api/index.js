@@ -2,10 +2,10 @@
 // This file uses standard Node.js/Vercel serverless function structure relying on GLOBAL fetch.
 
 // --- SECRETS LOADED FROM Vercel Environment Variables ---
-const TOKEN = process.env.SQUARE_TOKEN;
-const LOCATION_ID = process.env.SQUARE_LOCATION_ID;
-const SERVICE_ID = process.env.SQUARE_SERVICE_ID;
-const TEAM_ID = process.env.SQUARE_TEAM_ID; 
+const TOKEN = process.env.SQUARE_TOKEN || 'INVALID_TOKEN';
+const LOCATION_ID = process.env.SQUARE_LOCATION_ID || 'INVALID_LOCATION';
+const SERVICE_ID = process.env.SQUARE_SERVICE_ID || 'INVALID_SERVICE';
+const TEAM_ID = process.env.SQUARE_TEAM_ID || 'INVALID_TEAM';
 
 // --- MAIN SERVERLESS HANDLER ---
 // Vercel routes POST requests targeting /api/index.js directly to this function.
