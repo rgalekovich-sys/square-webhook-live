@@ -1,7 +1,6 @@
 // index.js - VAPI to Square Appointments Connector
 // This file uses standard Node.js/Vercel serverless function structure.
 
-const fetch = require('node-fetch'); // NOTE: fetch is available globally, but defining it is safer for clarity.
 
 // --- SECRETS LOADED FROM Vercel Environment Variables ---
 const TOKEN = process.env.SQUARE_TOKEN;
