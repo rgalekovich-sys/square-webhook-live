@@ -11,6 +11,6 @@
     "cors": "^2.8.5",
     "node-fetch": "^3.3.2" 
     
-    // The version numbers might vary, but the names must be exact.
   }
 }
+
