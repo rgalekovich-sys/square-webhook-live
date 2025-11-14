@@ -1,38 +1,31 @@
 // index.js - VAPI to Square Appointments Connector
-// This file is designed to run under Vercel Serverless Functions.
+// This file uses standard Node.js/Vercel serverless function structure.
 
-const express = require('express');
-const app = express();
-const cors = require('cors'); 
-// NOTE: fetch is available globally in Node.js 18+ (Vercel default)
+const fetch = require('node-fetch'); // NOTE: fetch is available globally, but defining it is safer for clarity.
 
 // --- SECRETS LOADED FROM Vercel Environment Variables ---
-// We define them here to ensure they are available in the entire scope
 const TOKEN = process.env.SQUARE_TOKEN;
 const LOCATION_ID = process.env.SQUARE_LOCATION_ID;
 const SERVICE_ID = process.env.SQUARE_SERVICE_ID;
 const TEAM_ID = process.env.SQUARE_TEAM_ID; 
 
-// --- MIDDLEWARE ---
-// 1. Enables CORS to allow VAPI's webhook to connect
-app.use(cors()); 
-// 2. Essential for parsing VAPI's JSON payload (req.body)
-app.use(express.json()); 
+// --- MAIN SERVERLESS HANDLER ---
+// Vercel routes POST requests targeting /api/index.js directly to this function.
+module.exports = async (req, res) => {
+    // Ensure this is a POST request (VAPI sends POST)
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
+    }
 
-// --- VAPI WEBHOOK ENDPOINT HANDLER ---
-// Vercel routes requests targeting /api/index.js to this file.
-// We use app.post('/', ...) to catch the POST request *inside this file's context*.
-app.post('/', async (req, res) => {
-    // Immediate log to confirm Vercel receives the request
-    console.log("Webhook received payload:", req.body ? 'Yes' : 'No'); 
-    
-    // FINAL DEBUG LOGS ADDED HERE
+    // --- DEBUG LOGS ---
+    console.log("Webhook received payload (Direct Handler):", req.body ? 'Yes' : 'No'); 
     console.log(`Debug: Token Exists: ${!!TOKEN}`);
-    console.log(`Debug: Location ID: ${LOCATION_ID}`);
-
+    
+    // VAPI Payload Handling
     const vapiPayload = req.body || {}; 
     const { functionName, args, toolCallId } = vapiPayload;
     
+    // Destructure required arguments
     const { customer_name, customer_phone, start_time, service_name } = args || {}; 
 
     // --- INPUT VALIDATION ---
@@ -46,7 +39,7 @@ app.post('/', async (req, res) => {
     }
 
     try {
-        // 1. STEP 2: CUSTOMER ID LOGIC (Search/Create)
+        // --- CUSTOMER LOGIC ---
         let customer_id = await searchCustomer(customer_phone, TOKEN);
         if (!customer_id) {
             customer_id = await createCustomer(customer_name, customer_phone, TOKEN);
@@ -55,14 +48,13 @@ app.post('/', async (req, res) => {
             throw new Error("Failed to secure customer ID for booking.");
         }
 
-        // 2. STEP 3: CREATE THE BOOKING
+        // --- CREATE THE BOOKING ---
         const bookingId = await createSquareBooking(customer_id, start_time, TOKEN);
 
-        // 3. VAPI SUCCESS RESPONSE
+        // --- VAPI SUCCESS RESPONSE ---
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                // SIMPLIFIED SUCCESS MESSAGE
                 result: `Booking success. ID: ${bookingId}.` 
             }]
         });
@@ -75,15 +67,14 @@ app.post('/', async (req, res) => {
         res.status(200).json({
             results: [{
                 toolCallId: toolCallId,
-                // ULTRA-SAFE FAILURE MESSAGE: Replaces newlines to prevent JSON parsing issues
                 result: `Booking failed. Failure Detail: ${error.message ? error.message.replace(/[\r\n]+/g, ' ') : 'Unknown API Error.'}`
             }]
         });
     }
-});
+};
 
+// --- HELPER FUNCTIONS (UNCHANGED) ---
 
-// --- HELPER FUNCTION: SEARCH CUSTOMER ---
 async function searchCustomer(phone, token) {
     const searchUrl = 'https://connect.squareup.com/v2/customers/search';
     const response = await fetch(searchUrl, {
@@ -92,14 +83,12 @@ async function searchCustomer(phone, token) {
         body: JSON.stringify({ query: { filter: { phone_number: { exact: phone } } } })
     });
     const data = await response.json();
-    // CRITICAL: Throw an error if the request fails here, so Vercel can catch it
     if (!response.ok) {
          throw new Error(data.errors ? data.errors[0].detail : `Search Customer HTTP Error ${response.status} from Square.`);
     }
     return (data.customers && data.customers.length > 0) ? data.customers[0].id : null;
 }
 
-// --- HELPER FUNCTION: CREATE CUSTOMER ---
 async function createCustomer(fullName, phone, token) {
     const createUrl = 'https://connect.squareup.com/v2/customers';
     const parts = fullName.split(' ');
@@ -115,14 +104,12 @@ async function createCustomer(fullName, phone, token) {
         })
     });
     const data = await response.json();
-    // CRITICAL: Throw an error if the request fails here, so Vercel can catch it
     if (!response.ok) {
          throw new Error(data.errors ? data.errors[0].detail : `Create Customer HTTP Error ${response.status} from Square.`);
     }
     return data.customer ? data.customer.id : null;
 }
 
-// --- HELPER FUNCTION: CREATE BOOKING (FIXED) ---
 async function createSquareBooking(customerId, startTime, token) {
     const bookingUrl = 'https://connect.squareup.com/v2/bookings';
     const response = await fetch(bookingUrl, {
@@ -144,21 +131,13 @@ async function createSquareBooking(customerId, startTime, token) {
 
     const data = await response.json();
     
-    // CRITICAL FIX: Check for HTTP error first
     if (!response.ok) {
         throw new Error(data.errors ? data.errors[0].detail : `Booking HTTP Error ${response.status} from Square.`);
     }
 
-    // CRITICAL FIX: If response is OK but no booking object is returned (e.g., availability fail)
     if (!data.booking) {
-        // This handles cases where Square rejects the booking due to conflict or availability.
         throw new Error(data.errors ? data.errors[0].detail : 'Square accepted request but returned no booking object (e.g., time slot unavailable).');
     }
 
-    // Success path
     return data.booking.id;
 }
-
-// --- EXPORT THE EXPRESS APP ---
-// Vercel/Passenger requires exporting the app object instead of calling app.listen()
-module.exports = app;
