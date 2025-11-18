@@ -2,7 +2,7 @@
 // This file uses standard Node.js/Vercel serverless function structure relying on GLOBAL fetch.
 
 // --- SECRETS LOADED FROM Vercel Environment Variables ---
-const TOKEN = "EAAAl30wPEDaj_3u4lS9pg7egIdAvo2Mo2gW38tD38O2VYhQ77gaQmJTde8NLDX_";
+const TOKEN = "EAAAlxeKO5vZgpRhF7loATp_IimkaJ0QOjGh3jqJvvw_d_i-i1u2s6_u8veEBM9q";
 const LOCATION_ID = process.env.SQUARE_LOCATION_ID || 'INVALID_LOCATION';
 const SERVICE_ID = process.env.SQUARE_SERVICE_ID || 'INVALID_SERVICE';
 const TEAM_ID = process.env.SQUARE_TEAM_ID || 'INVALID_TEAM';
